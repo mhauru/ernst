@@ -14,9 +14,10 @@ main = do
     initGUI
     gui <- loadGlade "lattice.glade"
     temp <- newMVar 0.0
+    couplings <- newMVar []
     size <- newMVar (0,0)
     reqRedraw <- newMVar True
-    let cv = CommVars temp size reqRedraw
+    let cv = CommVars temp couplings size reqRedraw
     connectGui gui cv
     widgetShowAll $ mainWin gui
     initCommVars gui cv
@@ -24,8 +25,8 @@ main = do
     gcUp <- gcNew dw 
     gcDown <- gcNew dw
     gcSetValues gcUp newGCValues{ foreground = red }
-    let latticeWidth = 100 --TODO Make these readable from somewhere
-    let latticeHeight = 150
+    let latticeWidth = 29 --TODO Make these readable from somewhere
+    let latticeHeight = 50
     let l = downLattice latticeWidth latticeHeight
     gen <- newStdGen
     let risW = randomRs (0,latticeWidth-1) gen :: [Int]
@@ -44,29 +45,32 @@ updateAndDraw l (risW,risH) rds dw cv gcUp gcDown = do
     let ([y],risH') = splitAt 1 risH
     let ([r],rds') = splitAt 1 rds
     t <- withMVar (temp cv) $ return
+    coups <- withMVar (couplings cv) $ return
     let t' = if t==0 then 10^^(-3) else t --"absolute zero"
     let beta = 1/t'
     let neigh = neighbourhood l x y
     let cand = if S.index (S.index l x) y == Up then Down else Up --Candidate for the new state
-    let s' = updateSpin neigh cand beta r
+    let s' = updateSpin neigh cand beta coups r
     let l' = S.update x (S.update y s' (S.index l x)) l --Can this be done without two calls to x l?
     let gc = if s'==Up then gcUp else gcDown
     (width, height) <- withMVar (canvasSize cv) $ return
-    let size = minimum [div width (S.length l), div height (S.length (S.index l 0))] --Assuming rectangular lattice
+    let size = minimum [div width (S.length l), div height (S.length (S.index l 0))]
     reqRedraw <- modifyMVar (requestRedraw cv) (\a -> return (False, a))
     --If the window has been resized redraw the whole lattice, otherwise just the new spin
     let drawAction = if reqRedraw --TODO why doesn't this redraw the whole lattice at first go?
                         then drawLattice dw cv gcUp gcDown l'
                         else drawRectangle dw gc True (x*size) (y*size) size size
-    postGUISync drawAction  --Would like this to be async, but that breaks stuff
+    postGUISync drawAction  --Would like this to be async, but that breaks stuff.
+                            --Now the physics halts to wait for a call that everything got drawn ok,
+                            --which is an unnecessarily strict requirement for helping drawing keep up with physics.
     updateAndDraw l' (risW',risH') rds' dw cv gcUp gcDown
 
 --------
 
-updateSpin :: (Spin,[Spin]) -> Spin -> Double -> Double -> Spin
-updateSpin (s1,neigh) s2 beta r = if s2E < s1E || r < boltzmannFactor then s2 else s1
-    where s1E = neighbourhoodE (s1,neigh)
-          s2E = neighbourhoodE (s2,neigh)
+updateSpin :: (Spin,[Spin]) -> Spin -> Double -> [Double] -> Double -> Spin
+updateSpin (s1,neigh) s2 beta coups r = if s2E < s1E || r < boltzmannFactor then s2 else s1
+    where s1E = neighbourhoodE (s1,neigh) coups
+          s2E = neighbourhoodE (s2,neigh) coups
           boltzmannFactor = exp $ (-1) * beta * (s2E - s1E)
 
 neighbourhood :: S.Seq (S.Seq Spin) -> Int -> Int -> (Spin,[Spin])
@@ -77,11 +81,20 @@ neighbourhood l x y = (S.index (S.index l x) y, S.index (S.index l (right x)) y 
     up y = if y == 0 then S.length (S.index l x) - 1 else y-1
     down y = if y == S.length (S.index l x) - 1 then 0 else y+1
 
-pairE :: Spin -> Spin -> Double
-pairE s1 s2 = if s1==s2 then -1 else 1 --Bogus units
+--The couplings are passed as a list, feel free to assign each of them to whatever purpose
+--you like, but be careful not to request couplings out of range.
+--Add sliders as needed, a new coupling will be added automatically.
 
-neighbourhoodE :: (Spin,[Spin]) -> Double
-neighbourhoodE (x,xs) = sum $ map (pairE x) xs
+--Ising model
+pairE :: Spin -> Spin -> [Double] -> Double
+pairE s1 s2 coups = (if s1/=s2 then -0.01 else 0.01)*coups!!0 --Bogus units
+
+--External field
+singleE :: Spin -> [Double] -> Double
+singleE s coups = (if s==Down then -0.01 else 0.01)*coups!!1
+
+neighbourhoodE :: (Spin,[Spin]) -> [Double] -> Double
+neighbourhoodE (x,xs) coups = (sum $ map (\s -> pairE x s coups) xs) + singleE x coups
 
 --------
 
@@ -101,6 +114,7 @@ randomLattice rands w h = S.fromList $ [S.fromList $ map (\d -> if d<0.5 then Up
 --MVars for communication between physics and GUI
 data CommVars = CommVars {
     temp :: MVar Double,
+    couplings :: MVar [Double],
     canvasSize :: MVar (Int, Int),
     requestRedraw :: MVar Bool}
 
@@ -108,6 +122,7 @@ data GUI = GUI {
     mainWin :: Window,
     canvas :: DrawingArea,
     tempScl :: VScale,
+    couplingScls :: [HScale],
     whaatBt :: Button}
 
 drawLattice :: DrawWindow -> CommVars -> GC -> GC -> S.Seq (S.Seq Spin) -> IO ()
@@ -126,20 +141,28 @@ loadGlade gladepath = do
     mw <- xmlGetWidget xml castToWindow "mainWindow"
     [whaatBt] <- mapM (xmlGetWidget xml castToButton) ["whaatBt"]
     tempScl <- xmlGetWidget xml castToVScale "tempScl"
+    --Add new couplings here as needed
+    couplingScl1 <- xmlGetWidget xml castToHScale "couplingScl1"
+    couplingScl2 <- xmlGetWidget xml castToHScale "couplingScl2"
+    couplingScl3 <- xmlGetWidget xml castToHScale "couplingScl3"
     canvas <- xmlGetWidget xml castToDrawingArea "canvas"
-    return $ GUI mw canvas tempScl whaatBt
+    return $ GUI mw canvas tempScl [couplingScl1, couplingScl2, couplingScl3] whaatBt
 
 connectGui :: GUI -> CommVars -> IO ()
 connectGui gui cv = do
     onDestroy (mainWin gui) mainQuit
     onClicked (whaatBt gui) mainQuit -- doWhaat
     onRangeValueChanged (tempScl gui) $ updateTempVar gui cv
+    sequence $ map (\scl -> onRangeValueChanged scl $ updateCouplingsVar gui cv) $ couplingScls gui
     afterSizeAllocate (canvas gui) $ (\a -> do updateSizeVar gui cv
                                                scheduleRedraw gui cv)
     return ()
 
 updateTempVar :: GUI -> CommVars -> IO()
 updateTempVar gui cv = do modifyMVar_ (temp cv) (\a -> rangeGetValue $ tempScl gui)
+
+updateCouplingsVar :: GUI -> CommVars -> IO()
+updateCouplingsVar gui cv = do modifyMVar_ (couplings cv) (\a -> sequence $ map rangeGetValue (couplingScls gui))
     
 updateSizeVar :: GUI -> CommVars -> IO()
 updateSizeVar gui cv = do modifyMVar_ (canvasSize cv) (\a -> widgetGetSize $ canvas gui)
@@ -150,6 +173,7 @@ scheduleRedraw gui cv = do modifyMVar_ (requestRedraw cv) (\a -> return True)
 initCommVars :: GUI -> CommVars -> IO ()
 initCommVars gui cv = do
     updateTempVar gui cv
+    updateCouplingsVar gui cv
     updateSizeVar gui cv --This actually appears needless, but playing safe
     modifyMVar_ (requestRedraw cv) (\a -> return True)
     return ()
