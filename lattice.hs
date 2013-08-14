@@ -1,5 +1,6 @@
 import Control.Monad
 import Data.List
+import Numeric
 import qualified Data.Sequence as S
 import qualified Data.Foldable as Foldable (toList) 
 import System.Random
@@ -25,8 +26,8 @@ main = do
     gcUp <- gcNew dw 
     gcDown <- gcNew dw
     gcSetValues gcUp newGCValues{ foreground = red }
-    let latticeWidth = 29 --TODO Make these readable from somewhere
-    let latticeHeight = 50
+    let latticeWidth = 39 --TODO Make these readable from somewhere
+    let latticeHeight = 39
     let l = downLattice latticeWidth latticeHeight
     gen <- newStdGen
     let risW = randomRs (0,latticeWidth-1) gen :: [Int]
@@ -85,15 +86,15 @@ neighbourhood l (x,y) = (at l here (x,y), nearest, diagonal)
 
 --External field
 singleE :: Spin -> [Double] -> Double
-singleE s coups = (if s==Down then -0.01 else 0.01)*coups!!0 --Bogus units and constant factor
+singleE s coups = (if s==Down then -1 else 1)*coups!!0
 
 --Ising model
 nearPairE :: Spin -> Spin -> [Double] -> Double
-nearPairE s1 s2 coups = (if s1/=s2 then -0.01 else 0.01)*coups!!1 --Bogus units and constant factor
+nearPairE s1 s2 coups = (if s1==s2 then -1 else 1)*coups!!1
 
 --Energy of diagonally connected spins
 diagPairE :: Spin -> Spin -> [Double] -> Double
-diagPairE s1 s2 coups = (if s1/=s2 then -0.01 else 0.01)*coups!!2 --Bogus units and constant factor
+diagPairE s1 s2 coups = (if s1==s2 then -1 else 1)*coups!!2
 
 neighbourhoodE :: (Spin,[Spin],[Spin]) -> [Double] -> Double
 neighbourhoodE (x,nearest,diagonal) coups = singleE x coups + nearestE + diagonalE
@@ -169,7 +170,8 @@ data GUI = GUI {
     canvas :: DrawingArea,
     tempScl :: VScale,
     couplingScls :: [HScale],
-    whaatBt :: Button}
+    quitBt :: Button,
+    tempLbl :: Label}
 
 drawLattice :: DrawWindow -> CommVars -> GC -> GC -> Lattice Spin -> IO ()
 drawLattice dw cv gcUp gcDown l = do
@@ -185,19 +187,20 @@ loadGlade :: String -> IO GUI
 loadGlade gladepath = do
     Just xml <- xmlNew gladepath
     mw <- xmlGetWidget xml castToWindow "mainWindow"
-    [whaatBt] <- mapM (xmlGetWidget xml castToButton) ["whaatBt"]
+    [quitBt] <- mapM (xmlGetWidget xml castToButton) ["quitBt"]
     tempScl <- xmlGetWidget xml castToVScale "tempScl"
+    tempLbl <- xmlGetWidget xml castToLabel "tempLbl"
     --Add new a new couplingScl here if needed and a new coupling will be available for the energy functions
     couplingScl1 <- xmlGetWidget xml castToHScale "couplingScl1"
     couplingScl2 <- xmlGetWidget xml castToHScale "couplingScl2"
     couplingScl3 <- xmlGetWidget xml castToHScale "couplingScl3"
     canvas <- xmlGetWidget xml castToDrawingArea "canvas"
-    return $ GUI mw canvas tempScl [couplingScl1, couplingScl2, couplingScl3] whaatBt
+    return $ GUI mw canvas tempScl [couplingScl1, couplingScl2, couplingScl3] quitBt tempLbl
 
 connectGui :: GUI -> CommVars -> IO ()
 connectGui gui cv = do
     onDestroy (mainWin gui) mainQuit
-    onClicked (whaatBt gui) mainQuit -- doWhaat
+    onClicked (quitBt gui) mainQuit -- doWhaat
     onRangeValueChanged (tempScl gui) $ updateTempVar gui cv
     sequence $ map (\scl -> onRangeValueChanged scl $ updateCouplingsVar gui cv) $ couplingScls gui
     afterSizeAllocate (canvas gui) $ (\a -> do updateSizeVar gui cv
@@ -205,7 +208,11 @@ connectGui gui cv = do
     return ()
 
 updateTempVar :: GUI -> CommVars -> IO()
-updateTempVar gui cv = do modifyMVar_ (temp cv) (\a -> rangeGetValue $ tempScl gui)
+updateTempVar gui cv = do modifyMVar_ (temp cv) (\a -> do 
+                          val <- rangeGetValue $ tempScl gui
+                          let newTemp = 10**val
+                          labelSetLabel (tempLbl gui) $ showEFloat (Just 2) newTemp ""
+                          return newTemp)
 
 updateCouplingsVar :: GUI -> CommVars -> IO()
 updateCouplingsVar gui cv = do modifyMVar_ (couplings cv) (\a -> sequence $ map rangeGetValue (couplingScls gui))
