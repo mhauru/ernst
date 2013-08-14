@@ -13,7 +13,7 @@ import Control.Concurrent
 main :: IO ()
 main = do
     initGUI
-    gui <- loadGlade "lattice.glade"
+    gui <- loadGlade "ernst.glade"
     temp <- newMVar 0.0
     couplings <- newMVar []
     size <- newMVar (0,0)
