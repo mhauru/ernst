@@ -1,3 +1,4 @@
+import Paths_ernst
 import Control.Monad
 import Data.List
 import Numeric
@@ -13,7 +14,8 @@ import Control.Concurrent
 main :: IO ()
 main = do
     initGUI
-    gui <- loadGlade "ernst.glade"
+    gladePath <- getDataFileName "ernst.glade"
+    gui <- loadGlade gladePath 
     temp <- newMVar 0.0
     couplings <- newMVar []
     size <- newMVar (0,0)

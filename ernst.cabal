@@ -1,0 +1,16 @@
+Name:           ernst
+Version:        0.1
+Synopsis:       A 2D lattice model simulator.
+License:        AllRightsReserved
+Author:			Markus Hauru
+Maintainer:     markus.hauru@gmail.com
+Build-type:     Simple
+Cabal-version:  >= 1.2
+Data-files:     ernst.glade
+Extra-source-files:
+	README
+
+Executable ernst
+    Main-is:        ernst.hs
+    Build-depends:  base, containers, random, gtk, glade
+    GHC-options:    -threaded

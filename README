@@ -1,0 +1,15 @@
+Ernst is a simple 2D spin lattice model simulator, written in Haskell
+by Markus Hauru (markus.hauru@gmail.com).
+
+Use cabal-install to build the package with the necessary dependencies
+and the makefile for quick local builds e.g. for development work.
+
+Note that ernst must always be compiled with the -threaded flag!
+
+Using the program itself is quite self-explanatory.
+It uses Metropolis-Hastings for updating the lattice and aims to be easy
+to modify for various kinds of couplings in spin lattice models, other
+than nearest-neighbour, external field and diagonal.
+Hopefully in the future ernst will support richer degrees of freedom
+than simple booleans (Potts, Heisenberg, etc.).
+
