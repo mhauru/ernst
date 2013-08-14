@@ -200,7 +200,7 @@ loadGlade gladepath = do
 connectGui :: GUI -> CommVars -> IO ()
 connectGui gui cv = do
     onDestroy (mainWin gui) mainQuit
-    onClicked (quitBt gui) mainQuit -- doWhaat
+    onClicked (quitBt gui) mainQuit
     onRangeValueChanged (tempScl gui) $ updateTempVar gui cv
     sequence $ map (\scl -> onRangeValueChanged scl $ updateCouplingsVar gui cv) $ couplingScls gui
     afterSizeAllocate (canvas gui) $ (\a -> do updateSizeVar gui cv

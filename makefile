@@ -1,11 +1,11 @@
-lattice : lattice.hs
-	ghc -threaded --make lattice.hs
+ernst : ernst.hs
+	ghc -threaded --make ernst.hs
 
-optimised : lattice.hs
-	ghc -threaded -O2 --make lattice.hs
+optimised : ernst.hs
+	ghc -threaded -O2 --make ernst.hs
 
-tar : lattice lattice.glade
-	tar -czf lattice.tar.gz lattice lattice.glade
+tar : ernst ernst.glade
+	tar -czf ernst.tar.gz ernst ernst.glade
 
 clean :
-	rm lattice.tar.gz lattice lattice.o	
+	rm ernst.tar.gz ernst ernst.o	
