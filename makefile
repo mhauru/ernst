@@ -8,4 +8,4 @@ tar : ernst ernst.glade
 	tar -czf ernst.tar.gz ernst ernst.glade
 
 clean :
-	rm ernst.tar.gz ernst ernst.o	
+	rm -f ernst.tar.gz ernst ernst.o	ernst.hi
