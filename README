@@ -1,10 +1,12 @@
 Ernst is a simple 2D spin lattice model simulator, written in Haskell.
 
-Use cabal-install to build the package with the necessary dependencies and the makefile for quick local builds e.g. for development work. Note that cabal install should install the required dependecies from hackage, but you may still need to install GTK2 and libglade2 as the Haskell libraries do not work with newer versions of GTK and Glade.
+Use cabal-install to build the package. Note that cabal install should install the required dependecies from hackage, but you may still need to install GTK2 and libglade2 on your system as the Haskell libraries do not work with newer versions of GTK and Glade. For development work, locally building ernst with GHC can be done with the makefile, but this requires commenting out the Paths_ernst module from ernst.hs and changing the gladePath line in the main function. I should figure out a more convenient solution to this.
 
 Note also that ernst must always be compiled with the -threaded flag! The makefile and cabal take care of this.
 
-Using the program itself is quite self-explanatory.  It uses the Metropolis-Hastings algorithm for updating the lattice and aims to be easy to modify for various kinds of couplings in spin lattice models, other than nearest-neighbour, external field and diagonal. Hopefully in the future ernst will support richer degrees of freedom than simple booleans (Potts, Heisenberg, etc.).
+Using the program itself is quite self-explanatory. The slider on the right controls temperature on a logarithmic scale and the sliders at the bottom control the values of the different coupling constants. That means that adjusting the sliders at the bottom changes the interaction energies between a spin and its nearest neighbours, its diagonal neighbours and an external field. For example, a positive nearest-neighbour coupling gives the ferromagnetic Ising model, whereas a negative one gives the anti-ferromagnetic Ising model.
+
+Ernst uses a simple variant of the Metropolis-Hastings algorithm to update the lattice. Adding new interaction terms with their own couplings by modifying the source code should be very easy, consult the comments in the source code for instrcutions. Hopefully in the future ernst will support richer degrees of freedom than simple booleans (Potts, Heisenberg, etc.).
 
 Feedback, questions and everything else to markus.hauru@gmail.com
 
