@@ -3,7 +3,7 @@ Version:            0.1
 Synopsis:           A 2D lattice model simulator.
 License:            MIT
 License-file:       LICENSE
-Author:			     Markus Hauru
+Author:             Markus Hauru
 Maintainer:         markus.hauru@gmail.com
 Build-type:         Simple
 Cabal-version:      >= 1.6
